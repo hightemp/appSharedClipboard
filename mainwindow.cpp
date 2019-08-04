@@ -7,6 +7,30 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
 
+    this->oClipboard = QApplication::clipboard();
+
+    this->sConfigFilePath = QDir::homePath()+"/appSharedClipboard.json";
+
+    if (QFile::exists(this->sConfigFilePath)) {
+        QFile oConfigFile(this->sConfigFilePath);
+
+        if (oConfigFile.open(QIODevice::ReadOnly)) {
+            this->oConfigJsonDocument = QJsonDocument::fromJson(oConfigFile.readAll());
+
+            this->oConfigJsonObject = this->oConfigJsonDocument.object();
+        }
+
+        oConfigFile.close();
+    }
+
+    this->iPort = this->oConfigJsonObject["iPort"].toInt();
+
+    if (this->iPort<1 || this->iPort>65535) {
+        this->iPort = 45500;
+    }
+
+    ui->oPortLineEdit->setText(QString::number(this->iPort));
+
     this->setWindowTitle("appSharedClipboard");
 
     QIcon oIcon(":/images/buffer_icon.png");
@@ -29,6 +53,11 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(this->oTrayIcon.data(), &QSystemTrayIcon::activated, this, &MainWindow::fnIconActivated);
 
     this->oTrayIcon->show();
+
+    connect(&this->oRecieverUdpSocket, &QUdpSocket::readyRead, this, &MainWindow::fnReadSignal);
+
+    connect(this->oClipboard, &QClipboard::changed, this, &MainWindow::fnClipboardChanged);
+    connect(this->oClipboard, &QClipboard::dataChanged, this, &MainWindow::fnClipboardDataChanged);
 }
 
 MainWindow::~MainWindow()
@@ -36,16 +65,80 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::fnCloseEvent(QCloseEvent *event)
+void MainWindow::fnClipboardChanged(QClipboard::Mode eMode)
+{
+    qDebug() << "fnClipboardChanged";
+}
+
+void MainWindow::fnClipboardDataChanged()
+{
+    qDebug() << "fnClipboardDataChanged";
+
+    QByteArray oDatagram;
+    QByteArray oBuffer;
+    const QMimeData *oMimeData = this->oClipboard->mimeData();
+
+    if (oMimeData->hasText()) {
+        oDatagram.append(CliboardType::CB_TEXT);
+        oBuffer = oMimeData->text().toUtf8();
+    } else if(oMimeData->hasHtml()) {
+        oDatagram.append(CliboardType::CB_HTML);
+        oBuffer = oMimeData->html().toUtf8();
+    } else if(oMimeData->hasImage()) {
+        oDatagram.append(CliboardType::CB_IMAGE);
+        oBuffer = oMimeData->imageData().toByteArray();
+    }
+
+    oDatagram.append(oBuffer);
+
+    this->oSenderUdpSocket.writeDatagram(oDatagram, QHostAddress::Broadcast, this->iPort);
+}
+
+void MainWindow::fnListen()
+{
+    this->oRecieverUdpSocket.bind(this->iPort, QUdpSocket::ShareAddress);
+}
+
+void MainWindow::fnReadSignal()
+{
+    qDebug() << "fnReadSignal";
+
+    QByteArray oDatagramByteArray;
+
+    while (this->oRecieverUdpSocket.hasPendingDatagrams()) {
+        oDatagramByteArray.resize(int(this->oRecieverUdpSocket.pendingDatagramSize()));
+        this->oRecieverUdpSocket.readDatagram(oDatagramByteArray.data(), oDatagramByteArray.size());
+
+        qDebug() << "readDatagram" << oDatagramByteArray.size();
+
+        qint8 iType = oDatagramByteArray.at(0);
+
+        oDatagramByteArray.remove(0, 1);
+
+        qDebug() << "Type:" << iType << "Size:" <<  oDatagramByteArray.size();
+
+        if (iType == CliboardType::CB_TEXT) {
+            this->oMimeData.setText(oDatagramByteArray);
+        } else if (iType == CliboardType::CB_HTML) {
+            this->oMimeData.setHtml(oDatagramByteArray);
+        } else if (iType == CliboardType::CB_IMAGE) {
+            this->oMimeData.setImageData(oDatagramByteArray);
+        }
+
+        this->oClipboard->setMimeData(&this->oMimeData);
+    }
+}
+
+void MainWindow::fnCloseEvent(QCloseEvent *oEvent)
 {
 #ifdef Q_OS_OSX
-    if (!event->spontaneous() || !isVisible()) {
+    if (!oEvent->spontaneous() || !isVisible()) {
         return;
     }
 #endif
     if (this->oTrayIcon->isVisible()) {
         hide();
-        event->ignore();
+        oEvent->ignore();
     }
 }
 
@@ -59,9 +152,9 @@ void MainWindow::fnQuit()
     QApplication::quit();
 }
 
-void MainWindow::fnIconActivated(QSystemTrayIcon::ActivationReason reason)
+void MainWindow::fnIconActivated(QSystemTrayIcon::ActivationReason eReason)
 {
-    switch (reason) {
+    switch (eReason) {
         case QSystemTrayIcon::Trigger:
         //case QSystemTrayIcon::DoubleClick:
             this->fnShowHide();
@@ -69,4 +162,23 @@ void MainWindow::fnIconActivated(QSystemTrayIcon::ActivationReason reason)
         case QSystemTrayIcon::MiddleClick:
             break;
     }
+}
+
+void MainWindow::on_oSaveButton_clicked()
+{
+    this->iPort = ui->oPortLineEdit->text().toInt();
+
+    this->fnListen();
+
+    QFile oConfigFile(this->sConfigFilePath);
+
+    if (oConfigFile.open(QIODevice::WriteOnly)) {
+        this->oConfigJsonObject["iPort"] = this->iPort;
+
+        this->oConfigJsonDocument.setObject(this->oConfigJsonObject);
+
+        oConfigFile.write(this->oConfigJsonDocument.toJson());
+    }
+
+    oConfigFile.close();
 }

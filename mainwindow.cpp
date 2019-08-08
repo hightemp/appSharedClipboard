@@ -122,6 +122,7 @@ void MainWindow::fnReadSignal()
         qDebug() << "Type:" << iType << "Size:" <<  oDatagramByteArray.size();
 
         if (iType == CliboardType::CB_TEXT) {
+            qDebug() << "Text data: " << QString(oDatagramByteArray);
             this->oMimeData.setText(oDatagramByteArray);
         } else if (iType == CliboardType::CB_HTML) {
             this->oMimeData.setHtml(oDatagramByteArray);

@@ -58,6 +58,8 @@ MainWindow::MainWindow(QWidget *parent) :
 
     connect(this->oClipboard, &QClipboard::changed, this, &MainWindow::fnClipboardChanged);
     connect(this->oClipboard, &QClipboard::dataChanged, this, &MainWindow::fnClipboardDataChanged);
+
+    this->fnListen();
 }
 
 MainWindow::~MainWindow()
@@ -92,11 +94,13 @@ void MainWindow::fnClipboardDataChanged()
     oDatagram.append(oBuffer);
 
     this->oSenderUdpSocket.writeDatagram(oDatagram, QHostAddress::Broadcast, this->iPort);
+    qDebug() << "this->oSenderUdpSocket.writeDatagram(oDatagram, QHostAddress::Broadcast, this->iPort);";
 }
 
 void MainWindow::fnListen()
 {
-    this->oRecieverUdpSocket.bind(this->iPort, QUdpSocket::ShareAddress);
+    qDebug() << "fnReadSignal";
+    this->oRecieverUdpSocket.bind(static_cast<quint16>(this->iPort), QUdpSocket::ShareAddress);
 }
 
 void MainWindow::fnReadSignal()
@@ -157,7 +161,7 @@ void MainWindow::fnIconActivated(QSystemTrayIcon::ActivationReason eReason)
     switch (eReason) {
         case QSystemTrayIcon::Trigger:
         //case QSystemTrayIcon::DoubleClick:
-            this->fnShowHide();
+            //this->fnShowHide();
             break;
         case QSystemTrayIcon::MiddleClick:
             break;

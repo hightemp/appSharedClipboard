@@ -1,0 +1,37 @@
+{
+  "name": "app-shared-buffer",
+  "version": "0.0.1",
+  "description": "appSharedBuffer",
+  "productName": "appSharedBuffer",
+  "cordovaId": "org.cordova.quasar.app",
+  "capacitorId": "",
+  "author": "hightemp <hightemp.unknown@gmail.com>",
+  "private": true,
+  "scripts": {
+    "test": "echo \"No test specified\" && exit 0"
+  },
+  "dependencies": {
+    "@quasar/extras": "^1.0.0",
+    "clipboardy": "^2.1.0",
+    "electron-clipboard-watcher": "^1.0.1",
+    "moment": "^2.24.0",
+    "quasar": "^1.0.0",
+    "vue-property-decorator": "^8.3.0"
+  },
+  "devDependencies": {
+    "@quasar/app": "^1.0.0",
+    "devtron": "^1.4.0",
+    "electron": "^7.0.0",
+    "electron-debug": "^3.0.0",
+    "electron-devtools-installer": "^2.2.4",
+    "electron-packager": "^14.1.1"
+  },
+  "engines": {
+    "node": ">= 8.9.0",
+    "npm": ">= 5.6.0",
+    "yarn": ">= 1.6.0"
+  },
+  "browserslist": [
+    "last 1 version, not dead, ie >= 11"
+  ]
+}

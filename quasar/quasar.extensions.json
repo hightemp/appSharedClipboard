@@ -8,7 +8,11 @@
     },
     "build_always": false,
     "__internal": {
-      "dev": {},
+      "dev": {
+        "electron": {
+          "iconHash": "9d18247fa1302bc69550777f31affc82"
+        }
+      },
       "build": {
         "electron": {
           "iconHash": "9d18247fa1302bc69550777f31affc82"

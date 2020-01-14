@@ -27,7 +27,8 @@ let tray = null;
 let aList = [];
 
 function createWindow () {
-  var sTrayIconPath = __dirname+'/statics/app-logo.png';
+  console.log('[!] createWindow');
+  var sTrayIconPath = __statics+'/app-logo.png';
   
   //var sTrayIconPath = __dirname+'/assets/app-logo.png';
   //var sTrayIconPath = 'assets/app-logo.png';
@@ -35,7 +36,7 @@ function createWindow () {
   //var glob = require('glob');
   //glob(__dirname+'/**/*', {}, (e, f) => { f.forEach((_) => console.dir(_)) });
 
-  //console.log(sTrayIconPath, require('fs').existsSync(sTrayIconPath));
+  console.log('[!]', sTrayIconPath, require('fs').existsSync(sTrayIconPath));
 
   let oNativeImage = nativeImage.createFromPath(sTrayIconPath);
 
@@ -56,7 +57,7 @@ function createWindow () {
     }
   })
 
-  //mainWindow.hide();
+  mainWindow.hide();
 
   mainWindow.loadURL(process.env.APP_URL)
 

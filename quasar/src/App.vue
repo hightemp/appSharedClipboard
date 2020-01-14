@@ -1,5 +1,5 @@
 <template>
-  <div id="q-app" class="column full-height">
+  <div id="q-app" class="column" style="height:100vh">
     <q-input 
       class="" 
       style="flex: 1"
@@ -8,35 +8,33 @@
       type="text" 
       label="Filter..." 
     />
-    <div class="" style="flex: 1">
-      <div class="col full-height" style="overflow-y: scroll">
-        <q-list bordered separator class="col">
-          <q-item
-            dense
-            v-for="(oItem, iIndex) in aFilteredList"
-            v-bind:key="iIndex"
-            clickable 
-            v-ripple
-          >
-            <q-item-section 
-              v-if="oItem.sType=='text'"
-            >{{ fnCutText(oItem.sText) }}</q-item-section>
-            <q-item-section side top>
-              <q-item-label caption>{{ fnFormatDateTime(oItem.iTime) }}</q-item-label>
-              <q-btn-group flat dense>
-                <q-btn
-                  dense 
-                  icon="move_to_inbox" 
-                  @click="fnCopyToClipboard(oItem)"/>
-                <q-btn 
-                  dense
-                  icon="delete" 
-                  @click="fnDeleteItem(oItem)"/>
-              </q-btn-group>
-            </q-item-section>
-          </q-item>
-        </q-list>
-      </div>
+    <div class="col full-height" style="overflow-y: scroll;align-items:stretch">
+      <q-list bordered separator class="col">
+        <q-item
+          dense
+          v-for="(oItem, iIndex) in aFilteredList"
+          v-bind:key="iIndex"
+          clickable 
+          v-ripple
+        >
+          <q-item-section 
+            v-if="oItem.sType=='text'"
+          >{{ fnCutText(oItem.sText) }}</q-item-section>
+          <q-item-section side top>
+            <q-item-label caption>{{ fnFormatDateTime(oItem.iTime) }}</q-item-label>
+            <q-btn-group flat dense>
+              <q-btn
+                dense 
+                icon="move_to_inbox" 
+                @click="fnCopyToClipboard(oItem)"/>
+              <q-btn 
+                dense
+                icon="delete" 
+                @click="fnDeleteItem(oItem)"/>
+            </q-btn-group>
+          </q-item-section>
+        </q-item>
+      </q-list>
     </div>
   </div>
 </template>
@@ -89,12 +87,6 @@ export default {
 
     ipcRenderer.on('clipboard-update', (oEvent, aList) => {
       oThis.aList = aList;
-      for (var i=0; i<100; i++) {
-        oThis.aList.push({
-          sType: "text",
-          sText: "dfadfafdafd"
-        });
-      }
     });
 
     ipcRenderer.send('renderer-app-created');

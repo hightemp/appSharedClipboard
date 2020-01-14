@@ -1,9 +1,10 @@
-import { app, BrowserWindow, nativeTheme, Menu, Tray, clipboard, ipcMain } from 'electron'
+import { app, BrowserWindow, nativeTheme, Menu, Tray, clipboard, ipcMain, nativeImage } from 'electron'
 
 import dgram from 'dgram';
 import path from 'path';
 import moment from 'moment';
 import { Server } from 'http';
+import { fstat } from 'fs';
 
 const PORT = 8787;
 
@@ -26,7 +27,17 @@ let tray = null;
 let aList = [];
 
 function createWindow () {
-  var sTrayIconPath = path.join(__dirname, '../icons/icon.png');
+  var sTrayIconPath = __dirname+'/statics/app-logo.png';
+  
+  //var sTrayIconPath = __dirname+'/assets/app-logo.png';
+  //var sTrayIconPath = 'assets/app-logo.png';
+  
+  //var glob = require('glob');
+  //glob(__dirname+'/**/*', {}, (e, f) => { f.forEach((_) => console.dir(_)) });
+
+  //console.log(sTrayIconPath, require('fs').existsSync(sTrayIconPath));
+
+  let oNativeImage = nativeImage.createFromPath(sTrayIconPath);
 
   /**
    * Initial window options
@@ -35,7 +46,7 @@ function createWindow () {
     width: 1000,
     height: 600,
     useContentSize: true,
-    icon: sTrayIconPath,
+    icon: oNativeImage,
     show: false,
     webPreferences: {
       // keep in sync with /quasar.conf.js > electron > nodeIntegration
@@ -82,7 +93,7 @@ function createWindow () {
     mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show();
   }
 
-  tray = new Tray(sTrayIconPath)
+  tray = new Tray(oNativeImage)
 
   tray.on('click double-click', () => {
     fnToggleWindowVisibility();

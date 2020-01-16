@@ -206,7 +206,7 @@ function createWindow () {
       fnAddItem({ 
         iTime: moment().valueOf(),
         sType: 'image',
-        sText: nativeImage 
+        sText: nativeImage.toDataURL()
       });
     },
 

@@ -21,7 +21,15 @@
           <q-item-section 
             v-if="oItem.sType=='text'"
             style="text-overflow:ellipsis; word-break: break-all"
-          >{{ fnCutText(oItem.sText) }}</q-item-section>
+          >
+            {{ fnCutText(oItem.sText) }}
+          </q-item-section>
+          <q-item-section 
+            v-if="oItem.sType=='image'"
+            style=""
+          >
+            <img style="width:100px" :src="oItem.sText">
+          </q-item-section>
           <q-item-section side top>
             <q-item-label caption>{{ fnFormatDateTime(oItem.iTime) }}</q-item-label>
             <q-btn-group flat dense>

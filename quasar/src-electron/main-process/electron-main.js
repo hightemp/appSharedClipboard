@@ -5,6 +5,7 @@ import path from 'path';
 import moment from 'moment';
 import { Server } from 'http';
 import { fstat } from 'fs';
+import fs from 'fs'
 
 const PORT = 8787;
 
@@ -29,6 +30,37 @@ let aList = [];
 function createWindow () {
   console.log('[!] createWindow');
   var sTrayIconPath = __statics+'/app-logo.png';
+
+  var eNotify = require('electron-notify');
+
+  eNotify.setConfig({
+    appIcon: sTrayIconPath,
+    displayTime: 6000
+  });
+
+  var sListFilePath = app.getPath("home")+"/appSharedClipboard.listfile.json";
+  
+  function fnLoadList()
+  {
+    if (fs.existsSync(sListFilePath)) {
+      try {
+        aList = JSON.parse(fs.readFileSync(sListFilePath).toString());
+      } catch (oError) {
+        console.error(oError);
+      }
+    }
+  }
+
+  function fnSaveList()
+  {
+    try {
+      fs.writeFileSync(sListFilePath, JSON.stringify(aList));
+    } catch (oError) {
+      console.error(oError);
+    }
+  }
+
+  fnLoadList();
   
   //var sTrayIconPath = __dirname+'/assets/app-logo.png';
   //var sTrayIconPath = 'assets/app-logo.png';
@@ -40,12 +72,17 @@ function createWindow () {
 
   let oNativeImage = nativeImage.createFromPath(sTrayIconPath);
 
+  const { screen } = require("electron");
+  const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+
   /**
    * Initial window options
    */
   mainWindow = new BrowserWindow({
-    width: 1000,
+    width: 500,
     height: 600,
+    x: width-500,
+    y: 30,
     useContentSize: true,
     icon: oNativeImage,
     show: false,
@@ -55,7 +92,9 @@ function createWindow () {
       // More info: https://quasar.dev/quasar-cli/developing-electron-apps/node-integration
       nodeIntegration: true
     }
-  })
+  });
+
+  mainWindow.setMenu(null);
 
   mainWindow.hide();
 
@@ -91,7 +130,9 @@ function createWindow () {
 
   function fnToggleWindowVisibility()
   {
-    mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show();
+    mainWindow.isVisible() ? 
+      (mainWindow.isFocused() ? mainWindow.hide() : mainWindow.show())
+      : mainWindow.show();
   }
 
   tray = new Tray(oNativeImage)
@@ -125,6 +166,7 @@ function createWindow () {
   }
 
   var oClient = dgram.createSocket("udp4");
+  oClient.bind(function() { oClient.setBroadcast(true); });
   var bSendItem = false;
   var bRemoteClipboardChange = false;
 
@@ -134,7 +176,8 @@ function createWindow () {
     try {
       var sMessage = JSON.stringify(oItem);
       bSendItem = true;
-      oClient.send(sMessage, PORT, '0.0.0.0');
+      oClient.send(sMessage, 0, sMessage.length, PORT, "255.255.255.255"); //"0.0.0.0");//"192.168.1.255");
+      //oClient.send(sMessage, PORT, '0.0.0.0');
     } catch(oError) {
       console.error(oError);
     }
@@ -143,6 +186,7 @@ function createWindow () {
   function fnAddItem(oItem)
   {
     aList.push(oItem);
+    fnSaveList();
     fnSendItem(oItem);
     fnUpdateList();
   }
@@ -193,6 +237,7 @@ function createWindow () {
   ipcMain.on('delete-item', (oEvent, oItem) => {
     console.log('delete-item', oItem)
     aList = aList.filter((v) => v.iTime!=oItem.iTime );
+    fnSaveList();
     fnUpdateList();
   });
 
@@ -210,8 +255,9 @@ function createWindow () {
 
   var oServer = dgram.createSocket("udp4");
 
-  oServer.bind(PORT, '0.0.0.0');
-  oServer.on('message', function(oMessage) {
+  oServer.bind(PORT); //, '0.0.0.0');
+
+  oServer.on('message', function(oMessage, oInfo) {
     console.log('oServer message', oMessage);
     if (bSendItem) {
       bSendItem = false;
@@ -220,9 +266,12 @@ function createWindow () {
     try {
       var oItem = JSON.parse(oMessage.toString());
 
+      eNotify.notify({ title: "Copy event from "+oInfo.address, text: oItem.sText ? oItem.sText.substr(0, 30)+'...' : '' })
+
       fnWriteToClipboard(oItem);
 
       aList.push(oItem);
+      fnSaveList();
       fnUpdateList();
     } catch (oError) {
       console.error(oError);
@@ -230,6 +279,7 @@ function createWindow () {
   });
 
   oServer.on('listening', () => {
+    oServer.setBroadcast(true);
     console.log('listen '+oServer.address+':'+oServer.port);
   });
 

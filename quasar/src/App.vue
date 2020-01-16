@@ -1,6 +1,7 @@
 <template>
   <div id="q-app" class="column" style="height:100vh">
     <q-input 
+      dense
       class="" 
       style="flex: 1"
       bordered 
@@ -19,6 +20,7 @@
         >
           <q-item-section 
             v-if="oItem.sType=='text'"
+            style="text-overflow:ellipsis; word-break: break-all"
           >{{ fnCutText(oItem.sText) }}</q-item-section>
           <q-item-section side top>
             <q-item-label caption>{{ fnFormatDateTime(oItem.iTime) }}</q-item-label>

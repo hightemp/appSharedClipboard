@@ -157,7 +157,11 @@ module.exports = function (ctx) {
       builder: {
         // https://www.electron.build/configuration/configuration
 
-        appId: 'app-shared-buffer'
+        appId: 'app-shared-buffer',
+
+        win: {
+          target: 'portable'
+        }
       },
 
       // keep in sync with /src-electron/main-process/electron-main

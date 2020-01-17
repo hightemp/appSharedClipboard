@@ -9,6 +9,8 @@
   "private": true,
   "scripts": {
     "build": "quasar build -c --mode electron -b builder --theme mat",
+    "build_win": "quasar build -c --mode electron -T win -b builder --theme mat",
+    "build_all": "quasar build -c --mode electron -T all -b builder --theme mat",
     "test": "echo \"No test specified\" && exit 0"
   },
   "dependencies": {

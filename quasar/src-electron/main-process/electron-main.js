@@ -418,7 +418,9 @@ function createWindow ()
           try {
             var oItem = JSON.parse(sMessage);
 
-            oList[oMessage.sKey] = oItem;
+            var sKey = moment().valueOf(); //oMessage.sKey
+
+            oList[sKey] = oItem;
 
             if (oItem.sType=="text") {
               eNotify.notify({ 

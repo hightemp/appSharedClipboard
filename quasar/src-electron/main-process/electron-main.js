@@ -5,9 +5,15 @@ import path from 'path';
 import moment from 'moment';
 import { Server } from 'http';
 import { fstat } from 'fs';
-import fs from 'fs'
+import fs from 'fs';
+import crc32 from 'crc/crc32';
+import WebSocket from 'ws';
+import os from 'os';
+
+import fnGetAllIPsFromAllInterfaces from '../../src/lib/interfaces';
 
 const PORT = 8787;
+const WS_PORT = PORT+1;
 
 try {
   if (process.platform === 'win32' && nativeTheme.shouldUseDarkColors === true) {
@@ -23,28 +29,88 @@ if (process.env.PROD) {
   global.__statics = require('path').join(__dirname, 'statics').replace(/\\/g, '\\\\')
 }
 
-let mainWindow = null;
-let tray = null;
-let aList = [];
+var mainWindow = null;
+var tray = null;
+// var aList = [];
+var oList = {};
+var oConfig = {
+  sBroadcastIP: "255.255.255.255",
+  bWatchForText: true,
+  bWatchForImages: true,
+  // iPackedRecieveTimeout: 3000,
+  // iPacketSize: 10000
+};
+var oRecievedPackets = {
+  /*
+    "deadbeaf": {
+      // iStartTimestamp: 123123123,
+      // iTimeout: 5000,
+      iRecievedParts: 5,
+      iPartsCount: 10,
+      oPackets: {
+        5: {
+          sCRCPacket: "deadbeaf",
+          sCRCItem: "deadbeaf",
+          sData: "",
+          iPartNumber: 5,
+          iPartsCount: 10
+        },
+        3: {
 
-function createWindow () {
-  console.log('[!] createWindow');
+        }
+      }
+    }
+  */
+};
+
+function createWindow () 
+{
+  
   var sTrayIconPath = __statics+'/app-logo.png';
 
   var eNotify = require('electron-notify');
 
   eNotify.setConfig({
     appIcon: sTrayIconPath,
-    displayTime: 6000
+    displayTime: 6000,
   });
 
-  var sListFilePath = app.getPath("home")+"/appSharedClipboard.listfile.json";
+  var sListFilePath = app.getPath("home")+"/appSharedClipboard.list.json";
+  var sConfigFilePath = app.getPath("home")+"/appSharedClipboard.config.json";
   
+  // TODO: oConfig loader and saver
+  function fnLoadConfig()
+  {
+    if (fs.existsSync(sListFilePath)) {
+      try {
+        oConfig = {
+          ...oConfig, 
+          ...JSON.parse(fs.readFileSync(sConfigFilePath).toString())
+        };
+        
+      } catch (oError) {
+        console.error(oError);
+      }
+    }
+  }
+
+  function fnSaveConfig()
+  {
+    try {
+      
+      fs.writeFileSync(sConfigFilePath, JSON.stringify(oConfig));
+    } catch (oError) {
+      console.error(oError);
+    }
+  }
+
+  fnLoadConfig();
+
   function fnLoadList()
   {
     if (fs.existsSync(sListFilePath)) {
       try {
-        aList = JSON.parse(fs.readFileSync(sListFilePath).toString());
+        oList = JSON.parse(fs.readFileSync(sListFilePath).toString());
       } catch (oError) {
         console.error(oError);
       }
@@ -54,7 +120,7 @@ function createWindow () {
   function fnSaveList()
   {
     try {
-      fs.writeFileSync(sListFilePath, JSON.stringify(aList));
+      fs.writeFileSync(sListFilePath, JSON.stringify(oList));
     } catch (oError) {
       console.error(oError);
     }
@@ -68,7 +134,7 @@ function createWindow () {
   //var glob = require('glob');
   //glob(__dirname+'/**/*', {}, (e, f) => { f.forEach((_) => console.dir(_)) });
 
-  console.log('[!]', sTrayIconPath, require('fs').existsSync(sTrayIconPath));
+  
 
   let oNativeImage = nativeImage.createFromPath(sTrayIconPath);
 
@@ -81,7 +147,7 @@ function createWindow () {
   mainWindow = new BrowserWindow({
     width: 500,
     height: 600,
-    x: width-500,
+    x: width,
     y: 30,
     useContentSize: true,
     icon: oNativeImage,
@@ -101,13 +167,13 @@ function createWindow () {
   mainWindow.loadURL(process.env.APP_URL)
 
   mainWindow.on('minimize',function(event){
-    console.log('minimize');
+    
     event.preventDefault();
     mainWindow.hide();
   });
 
   mainWindow.on('close', function (event) {
-    console.log('close');
+    
     if(!app.isQuiting){
       event.preventDefault();
       mainWindow.hide();
@@ -117,13 +183,13 @@ function createWindow () {
   });
 
   process.once('SIGINT', () => { 
-    console.log('SIGINT');
+    
     app.isQuiting = true;
     app.quit();//
   });
 
   process.once('SIGTERM', () => { 
-    console.log('SIGTERM');
+    
     app.isQuiting = true;
     app.quit();
   });
@@ -162,22 +228,44 @@ function createWindow () {
 
   function fnUpdateList()
   {
-    mainWindow.webContents.send('clipboard-update', aList);
+    // 
+    mainWindow.webContents.send('clipboard-update', oList);
+  }
+
+  function fnUpdateConfig()
+  {
+    
+    mainWindow.webContents.send('config-update', oConfig);
   }
 
   var oClient = dgram.createSocket("udp4");
   oClient.bind(function() { oClient.setBroadcast(true); });
-  var bSendItem = false;
+  // var bSendItem = false;
   var bRemoteClipboardChange = false;
 
-  function fnSendItem(oItem)
+  function fnNotifyAll(sKey)
   {
-    console.log('fnSendItem', oItem);
+    
+
+    var sMessage = JSON.stringify({
+      sEvent: "download-item", 
+      sKey: sKey
+    });
+
     try {
-      var sMessage = JSON.stringify(oItem);
-      bSendItem = true;
-      oClient.send(sMessage, 0, sMessage.length, PORT, "255.255.255.255"); //"0.0.0.0");//"192.168.1.255");
-      //oClient.send(sMessage, PORT, '0.0.0.0');
+      oClient.send(
+        sMessage, 
+        0, 
+        sMessage.length, 
+        PORT, 
+        oConfig.sBroadcastIP, 
+        (oErr, iNumBytes) => { 
+          if (oErr) {
+            console.error(oErr);
+          }
+          
+        }
+      );
     } catch(oError) {
       console.error(oError);
     }
@@ -185,10 +273,14 @@ function createWindow () {
 
   function fnAddItem(oItem)
   {
-    aList.push(oItem);
+    var iTimestamp = moment().valueOf();
+    oList[iTimestamp] = oItem;
+    //
+    //aList.push(oItem);
     fnSaveList();
-    fnSendItem(oItem);
     fnUpdateList();
+    //fnSendItem(oItem);
+    fnNotifyAll(iTimestamp);
   }
 
   const clipboardWatcher = require('electron-clipboard-watcher')
@@ -197,12 +289,15 @@ function createWindow () {
     watchDelay: 1000,
 
     // handler for when image data is copied into the clipboard
-    onImageChange: function (nativeImage) { 
+    onImageChange(nativeImage) { 
+      
+      if (!oConfig.bWatchForImages) 
+        return;
       if (bRemoteClipboardChange) {
         bRemoteClipboardChange = false;
         return;
       }
-      console.log('onImageChange', nativeImage); 
+       
       fnAddItem({ 
         iTime: moment().valueOf(),
         sType: 'image',
@@ -211,12 +306,15 @@ function createWindow () {
     },
 
     // handler for when text data is copied into the clipboard
-    onTextChange: function (text) {
+    onTextChange(text) {
+      
+      if (!oConfig.bWatchForText) 
+        return;
       if (bRemoteClipboardChange) {
         bRemoteClipboardChange = false;
         return;
       } 
-      console.log('onTextChange', text);
+      
       fnAddItem({ 
         iTime: moment().valueOf(),
         sType: 'text',
@@ -232,47 +330,141 @@ function createWindow () {
     if (oItem.sType=='text') {
       clipboard.writeText(oItem.sText);
     }
+
+    if (oItem.sType=='image') {
+      clipboard.writeImage(nativeImage.createFromDataURL(oItem.sText));
+    }
   }
 
-  ipcMain.on('delete-item', (oEvent, oItem) => {
-    console.log('delete-item', oItem)
-    aList = aList.filter((v) => v.iTime!=oItem.iTime );
+  ipcMain.on('send-item', (oEvent, sKey) => {
+    fnNotifyAll(sKey);
+  });
+
+  ipcMain.on('delete-item', (oEvent, sKey) => {
+    
+    // aList = aList.filter((v) => v.iTime!=oItem.iTime );
+    delete oList[sKey];
     fnSaveList();
     fnUpdateList();
   });
 
-  ipcMain.on('copy-to-cb-item', (oEvent, oItem) => {
-    console.log('copy-to-cb-item', oItem)
+  ipcMain.on('copy-to-cb-item', (oEvent, sKey) => {
     
+    
+    var oItem = oList[sKey];
     fnWriteToClipboard(oItem);
+    //fnSendItem(oItem);
   });
 
   ipcMain.on('renderer-app-created', (oEvent) => {
-    console.log('renderer-app-created')
     
+    
+    fnUpdateConfig();
     fnUpdateList();
+  });
+
+  ipcMain.on('config-update', (oEvent, oNewConfig) => {
+    
+    
+    oConfig = oNewConfig;
+    fnSaveConfig();
+  });
+
+  var oWSS = new WebSocket.Server({ port: WS_PORT });
+
+  // WS server, send item
+  oWSS.on('connection', (oWS) => {
+    
+    oWS.on('message', (sMessage) => {
+      
+      try {
+        var oMessage = JSON.parse(sMessage);
+
+        if (oMessage.sEvent == 'ws-download-item') {
+          var sItem = JSON.stringify(oList[oMessage.sKey]);
+          
+          oWS.send(sItem);
+        }
+      } catch (oError) {
+        console.error(oError);
+      }
+    });
   });
 
   var oServer = dgram.createSocket("udp4");
 
-  oServer.bind(PORT); //, '0.0.0.0');
+  oServer.bind(PORT);
 
-  oServer.on('message', function(oMessage, oInfo) {
-    console.log('oServer message', oMessage);
-    if (bSendItem) {
-      bSendItem = false;
+  // UDP Broadcast server
+  oServer.on('message', function(oMessageBuffer, oInfo) {
+    
+
+    var aIPs = fnGetAllIPsFromAllInterfaces();
+
+    if (~aIPs.indexOf(oInfo.address)) {
       return;
     }
+
     try {
-      var oItem = JSON.parse(oMessage.toString());
+      var oMessage = JSON.parse(oMessageBuffer.toString());
 
-      eNotify.notify({ title: "Copy event from "+oInfo.address, text: oItem.sText ? oItem.sText.substr(0, 30)+'...' : '' })
+      if (oMessage.sEvent == "download-item") {
+        
+        var oWS = new WebSocket(`ws://${oInfo.address}:${WS_PORT}`);
+        
 
-      fnWriteToClipboard(oItem);
+        oWS.on('message', (sMessage) => {
+          
+          try {
+            var oItem = JSON.parse(sMessage);
 
-      aList.push(oItem);
-      fnSaveList();
-      fnUpdateList();
+            oList[oMessage.sKey] = oItem;
+
+            if (oItem.sType=="text") {
+              eNotify.notify({ 
+                title: "Copy event from "+oInfo.address, 
+                text: oItem.sText.length > 30 ? oItem.sText.substr(0, 30)+'...' : oItem.sText 
+              });
+            }
+
+            if (oItem.sType=="image") {
+              eNotify.notify({ 
+                title: "Copy event from "+oInfo.address, 
+                image: oItem.sText 
+              });
+            }
+
+            fnWriteToClipboard(oItem);
+            fnSaveList();
+            fnUpdateList();
+          } catch (oError) {
+            console.error(oError);
+          }
+        });
+
+        
+
+        oWS.on('error', (oError) => {
+          
+          console.error(oError);
+        });
+
+        
+
+        oWS.on('open', () => {
+          
+          oWS.send(
+            JSON.stringify(
+              {
+                sEvent: 'ws-download-item',
+                sKey: oMessage.sKey
+              }
+            )
+          );
+        });
+
+        
+      }
     } catch (oError) {
       console.error(oError);
     }
@@ -280,10 +472,8 @@ function createWindow () {
 
   oServer.on('listening', () => {
     oServer.setBroadcast(true);
-    console.log('listen '+oServer.address+':'+oServer.port);
+    
   });
-
-  fnUpdateList();
 }
 
 app.on('ready', createWindow)

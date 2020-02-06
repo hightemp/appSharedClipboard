@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "appSharedBuffer",
   "productName": "appSharedBuffer",
-  "cordovaId": "org.cordova.quasar.app",
+  "cordovaId": "org.app-shared-buffer.app",
   "capacitorId": "",
   "author": "hightemp <hightemp.unknown@gmail.com>",
   "private": true,
@@ -15,11 +15,13 @@
   },
   "dependencies": {
     "@quasar/extras": "^1.0.0",
+    "crc": "^3.8.0",
     "electron-clipboard-watcher": "^1.0.1",
     "electron-notify": "^0.1.0",
     "moment": "^2.24.0",
     "quasar": "^1.0.0",
-    "vue-property-decorator": "^8.3.0"
+    "vue-property-decorator": "^8.3.0",
+    "ws": "^7.2.1"
   },
   "devDependencies": {
     "@quasar/app": "^1.0.0",

@@ -1,10 +1,10 @@
 <template>
   <div id="q-app" class="column" style="height:100vh">
-    <div class="col-auto row">
+    <div class="col-auto row top-row">
       <q-input 
         dense
         square
-        outlined
+        filled
         class="" 
         style="flex: 1"
         bordered 
@@ -41,73 +41,131 @@
         </q-list>
       </q-btn-dropdown>
     </div>
-    
-    <div class="col full-height" style="overflow-y: scroll;align-items:stretch">
-      <q-list 
-        bordered 
-        separator 
-        class="col"
-        v-if="iFilteredListLength"
+
+    <q-item
+      v-if="oClipboard"
+      dense
+      clickable 
+      v-ripple
+      class="clipboard-item"
+      @mouseover="sMouseOverItem='clipboard'"
+    >
+      <q-item-section 
+        v-if="oClipboard.sType=='text'"
+        style="text-overflow:ellipsis; word-break: break-all"
       >
+        {{ fnCutText(oClipboard.sText) }}
+      </q-item-section>
+      <q-item-section 
+        v-if="oClipboard.sType=='image'"
+        style=""
+      >
+        <img style="width:100px" :src="oClipboard.sText">
+      </q-item-section>
+      <q-item-section side top>
+        <q-item-label caption>{{ fnFormatDateTime(oClipboard.iTime) }}</q-item-label>
+        <q-btn-group flat dense v-if="sMouseOverItem=='clipboard'">
+          <q-btn
+            dense 
+            icon="send" 
+            @click="fnSendClipboard()"
+            title="send item to all"
+          />
+          <q-btn 
+            dense
+            icon="delete" 
+            @click="fnClearClipboard()"
+            title="clear"
+          />
+        </q-btn-group>
+      </q-item-section>
+    </q-item>
+    
+    <q-virtual-scroll
+      :items="aFilteredList"
+      separator
+      class="col full-height"
+    >
+      <template v-slot="{ item, index }">
         <q-item
           dense
-          v-for="(oItem, sKey) in oFilteredList"
-          v-bind:key="sKey"
+          :key="item.sKey"
           clickable 
           v-ripple
-          class="has-hidden-buttons"
+          class=""
+          @mouseover="sMouseOverItem=item.sKey"
         >
           <q-item-section 
-            v-if="oItem.sType=='text'"
+            v-if="item.oItem.sType=='text'"
             style="text-overflow:ellipsis; word-break: break-all"
           >
-            {{ fnCutText(oItem.sText) }}
+            {{ fnCutText(item.oItem.sText) }}
           </q-item-section>
           <q-item-section 
-            v-if="oItem.sType=='image'"
+            v-if="item.oItem.sType=='image'"
             style=""
           >
-            <img style="width:100px" :src="oItem.sText">
+            <img style="width:100px" :src="item.oItem.sText">
           </q-item-section>
           <q-item-section side top>
-            <q-item-label caption>{{ fnFormatDateTime(oItem.iTime) }}</q-item-label>
-            <q-btn-group flat dense class="hidden-buttons">
+            <q-item-label caption>{{ fnFormatDateTime(item.oItem.iTime) }}</q-item-label>
+            <q-btn-group flat dense v-if="sMouseOverItem==item.sKey">
               <q-btn
                 dense 
                 icon="send" 
-                @click="fnSendItem(sKey)"/>
+                @click="fnSendItem(item.sKey)"
+                title="send item to all"
+              />
               <q-btn
                 dense 
                 icon="move_to_inbox" 
-                @click="fnCopyToClipboard(sKey)"/>
+                @click="fnCopyToClipboard(item.sKey)"
+                title="copy to clipboard"
+              />
               <q-btn 
                 dense
                 icon="delete" 
-                @click="fnDeleteItem(sKey)"/>
+                @click="fnDeleteItem(item.sKey)"
+                title="delete"
+              />
             </q-btn-group>
           </q-item-section>
         </q-item>
-      </q-list>
-    </div>
+      </template>
+    </q-virtual-scroll>    
   </div>
 </template>
 
 <style>
+/*
 .has-hidden-buttons:hover .hidden-buttons {
   display: inline-flex !important;
 }
 .hidden-buttons {
   display: none !important;
 }
+*/
+.clipboard-item {
+  background: #eee;
+  border-top: 1px solid #aaa;
+  border-bottom: 1px solid #aaa;
+  min-height: 52px !important;
+}
+.top-row {
+  background: #ddd;
+}
 .q-btn-dropdown__arrow {
   display: none;
+}
+.q-item {
+  min-height: 51px;
 }
 </style>
 
 <script>
 
 import Vue from 'vue'
-import { ipcRenderer } from 'electron'
+import { ipcRenderer, clipboard } from 'electron'
 import moment from 'moment'
 
 import fnGetAllIPsFromAllInterfaces from './lib/interfaces';
@@ -116,14 +174,33 @@ export default {
   name: 'App',
 
   computed: {
-    aIPs() {
+    aIPs() 
+    {
       var aIPs = fnGetAllIPsFromAllInterfaces();
 
       aIPs = aIPs.filter((v) => v != "127.0.0.1" && v.trim() != "::1");
 
       return aIPs;
     },
-    oFilteredList() {
+    aFilteredList()
+    {
+      var oThis = this;
+      var oItems = oThis.oFilteredList;
+      var aResult = [];
+
+      var aKeys = Object.keys(oItems);
+
+      aKeys.forEach((sKey) => {
+        aResult.push({
+          sKey,
+          oItem: oItems[sKey]
+        });
+      });
+
+      return aResult;
+    },
+    oFilteredList() 
+    {
       var oThis = this;
       var oFilteredList = {};
       oThis.iFilteredListLength = 0;
@@ -155,6 +232,10 @@ export default {
   {
     return {
       // aList: [],
+      sMouseOverItem: "",
+
+      oClipboard: null,
+
       oList: {},
       iFilteredListLength: 0,
       sFilterText: "",
@@ -176,6 +257,45 @@ export default {
   },
 
   methods: {
+    fnUpdateClipboard()
+    {
+      var oThis = this;
+      var oNativeImage = clipboard.readImage();
+
+      console.log('>>oNativeImage', oNativeImage, oNativeImage.isEmpty());
+
+      if (oNativeImage && oNativeImage.isEmpty && !oNativeImage.isEmpty()) {
+        oThis.oClipboard = {
+          iTime: moment().valueOf(),
+          sType: 'image',
+          sText: oNativeImage.toDataURL()
+        };
+      } else {
+        var sText = clipboard.readText();
+
+        console.log('>>sText', sText);
+
+        oThis.oClipboard = {
+          iTime: moment().valueOf(),
+          sType: 'text',
+          sText: sText
+        };
+      }
+
+      oThis.$nextTick(() => {
+        setTimeout(oThis.fnUpdateClipboard, 2000);
+      });      
+    },
+    fnSendClipboard()
+    {
+      var oThis = this;
+
+      ipcRenderer.send('send-clipboard', oThis.oClipboard);
+    },
+    fnClearClipboard()
+    {
+      clipboard.clear();
+    },
     fnSendItem(sKey)
     {
       ipcRenderer.send('send-item', sKey);
@@ -201,6 +321,8 @@ export default {
   created()
   {
     var oThis = this;
+  
+    oThis.fnUpdateClipboard();
 
     ipcRenderer.on('clipboard-update', (oEvent, oList) => {
       // oThis.aList = aList;

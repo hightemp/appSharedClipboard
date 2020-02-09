@@ -336,6 +336,13 @@ function createWindow ()
     }
   }
 
+  ipcMain.on('send-clipboard', (oEvent, oClipboard) => {
+    oList['clipboard'] = oClipboard;
+    fnSaveList();
+    fnUpdateList();
+    fnNotifyAll('clipboard');
+  });
+
   ipcMain.on('send-item', (oEvent, sKey) => {
     fnNotifyAll(sKey);
   });

@@ -205,7 +205,7 @@ export default {
       var oFilteredList = {};
       oThis.iFilteredListLength = 0;
 
-      var aKeys = Object.keys(oThis.oList).reverse();
+      var aKeys = Object.keys(oThis.oList).filter((v) => v!='clipboard').reverse();
 
       for (var sKey of aKeys) {
         if (!oThis.sFilterText || ~oThis.oList[sKey].sText.indexOf(oThis.sFilterText)) {

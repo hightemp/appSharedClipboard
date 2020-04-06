@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "appSharedBuffer",
   "productName": "appSharedBuffer",
-  "cordovaId": "org.app-shared-buffer.app",
+  "cordovaId": "org.appsharedbuffer.app",
   "capacitorId": "",
   "author": "hightemp <hightemp.unknown@gmail.com>",
   "private": true,
@@ -11,6 +11,8 @@
     "build": "quasar build -c --mode electron -b builder --theme mat",
     "build_win": "quasar build -c --mode electron -T win -b builder --theme mat",
     "build_all": "quasar build -c --mode electron -T all -b builder --theme mat",
+    "build_android": "quasar build -m cordova -T android",
+    "dev_android": "quasar dev -m cordova -T android",
     "test": "echo \"No test specified\" && exit 0"
   },
   "dependencies": {

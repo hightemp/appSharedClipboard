@@ -11,11 +11,29 @@
       "dev": {
         "electron": {
           "iconHash": "9d18247fa1302bc69550777f31affc82"
+        },
+        "pwa": {
+          "iconHash": "9d18247fa1302bc69550777f31affc82"
+        },
+        "cordova": {
+          "iconHash": "9d18247fa1302bc69550777f31affc82",
+          "splashscreenHash": "f3a37d8ad9d13f082b8489c14e78183f",
+          "splashscreenType": "pure",
+          "backgroundColor": "#000074"
         }
       },
       "build": {
         "electron": {
           "iconHash": "9d18247fa1302bc69550777f31affc82"
+        },
+        "pwa": {
+          "iconHash": "9d18247fa1302bc69550777f31affc82"
+        },
+        "cordova": {
+          "iconHash": "9d18247fa1302bc69550777f31affc82",
+          "splashscreenHash": "f3a37d8ad9d13f082b8489c14e78183f",
+          "splashscreenType": "pure",
+          "backgroundColor": "#000074"
         }
       }
     }

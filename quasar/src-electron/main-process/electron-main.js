@@ -355,6 +355,12 @@ function createWindow ()
     fnUpdateList();
   });
 
+  ipcMain.on('clear-list', (oEvent, sKey) => {
+    oList = {};
+    fnSaveList();
+    fnUpdateList();
+  });
+
   ipcMain.on('copy-to-cb-item', (oEvent, sKey) => {
     
     

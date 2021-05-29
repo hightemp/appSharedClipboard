@@ -23,7 +23,7 @@
     "moment": "^2.24.0",
     "quasar": "^1.0.0",
     "vue-property-decorator": "^8.3.0",
-    "ws": "^7.2.1"
+    "ws": "^7.4.6"
   },
   "devDependencies": {
     "@quasar/app": "^1.0.0",
